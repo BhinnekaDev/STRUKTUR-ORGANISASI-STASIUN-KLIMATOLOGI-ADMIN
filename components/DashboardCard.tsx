@@ -12,7 +12,7 @@ interface DashboardCardProps {
   icon: string;
   title: string;
   value?: number;
-  barData?: BarData[]; // barData opsional, jika ada tampilkan bar
+  barData?: BarData[]; 
   onClick?: () => void;
 }
 
@@ -45,7 +45,6 @@ export default function DashboardCard({
         </div>
       </div>
 
-      {/* Jika ada barData, tampilkan progress bar */}
       {barData && barData.length > 0 && (
         <div className="space-y-3">
           {barData.map((item, idx) => {

@@ -1,16 +1,30 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface Petugas {
-  NIP: string;
-  ID_Jabatan: string;
-  Jabatan: { Nama_Jabatan: string };
-  Nama_Depan_Petugas: string;
-  Nama_Belakang_Petugas: string;
-  No_Telepon_Petugas: string;
-  Foto_Petugas: string;
-  Masa_Bakti: string;
+  nip: string;
+  nama_lengkap: string;
+  tempat_tanggal_lahir: string;
+  pendidikan_terakhir: string;
+  pangkat_golongan: string;
+  kgb_terakhir: string;
+  kgb_berikutnya: string;
+  no_telepon: string;
+  foto_pegawai: string;
+  tmt: string;
 }
 
+interface RawPetugas {
+  nip: string;
+  nama_lengkap: string;
+  tempat_tanggal_lahir?: string;
+  pendidikan_terakhir?: string;
+  pangkat_golongan?: string;
+  kgb_terakhir?: string;
+  kgb_berikutnya?: string;
+  no_telepon?: string;
+  foto_pegawai?: string;
+  tmt?: string;
+}
 
 export async function getAllPetugas(): Promise<Petugas[]> {
   try {
@@ -22,15 +36,33 @@ export async function getAllPetugas(): Promise<Petugas[]> {
       },
     });
 
+    const rawData: RawPetugas[] = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Gagal mengambil data petugas');
+      const errorData = rawData as unknown as { message?: string };
+      throw new Error(errorData?.message || 'Gagal mengambil data petugas');
     }
 
-    const data: Petugas[] = await response.json();
+    const data: Petugas[] = rawData.map((item) => ({
+      nip: item.nip,
+      nama_lengkap: item.nama_lengkap,
+      tempat_tanggal_lahir: item.tempat_tanggal_lahir ?? '',
+      pendidikan_terakhir: item.pendidikan_terakhir ?? '',
+      pangkat_golongan: item.pangkat_golongan ?? '',
+      kgb_terakhir: item.kgb_terakhir ?? '',
+      kgb_berikutnya: item.kgb_berikutnya ?? '',
+      no_telepon: item.no_telepon ?? '',
+      foto_pegawai: item.foto_pegawai ?? '',
+      tmt: item.tmt ?? '',
+    }));
+
     return data;
   } catch (error) {
     console.error('Fetch error:', error);
-    throw new Error((error as Error).message || 'Terjadi kesalahan saat mengambil data petugas');
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Terjadi kesalahan saat mengambil data pegawai'
+    );
   }
 }

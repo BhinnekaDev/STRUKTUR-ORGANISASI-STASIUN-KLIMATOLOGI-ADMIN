@@ -1,28 +1,21 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
 
 export interface PetugasPayload {
-  NIP: string;
-  ID_Jabatan: string;
-  Jabatan: string;
-  Nama_Depan_Petugas: string;
-  Nama_Belakang_Petugas: string;
-  No_Telepon_Petugas: string;
-  Masa_Bakti: string;
-  Foto_Petugas: string;
+  nip: string;
+  nama_lengkap: string;
+  tempat_tanggal_lahir?: string;
+  pendidikan_terakhir?: string;
+  pangkat_golongan?: string;
+  kgb_terakhir?: string;
+  kgb_berikutnya?: string;
+  no_telepon?: string;
+  foto_pegawai?: string;
+  tmt?: string; 
 }
 
 export interface PetugasResponse {
   message: string;
-  data: {
-    NIP: string;
-    ID_Jabatan: string;
-    Nama_Depan_Petugas: string;
-    Nama_Belakang_Petugas: string;
-    No_Telepon_Petugas: string;
-    Masa_Bakti: string;
-    Foto_Petugas: string;
-    Jabatan: string;
-  };
+  data: PetugasPayload;
 }
 
 export async function tambahPetugas(
@@ -38,7 +31,7 @@ export async function tambahPetugas(
     });
 
     if (!response.ok) {
-      let errorMessage = 'Terjadi kesalahan saat menambahkan pegawai';
+      let errorMessage = 'Terjadi kesalahan saat menambahkan petugas';
 
       const contentType = response.headers.get('Content-Type') || '';
       if (contentType.includes('application/json')) {

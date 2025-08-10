@@ -31,11 +31,11 @@ export default function LupaPasswordPage() {
                             width={150}
                             height={150}
                         />
-                    </div> */}
+                    </div> 
                     <p className="text-gray-700">
                         Link reset telah dikirim ke <strong>{email}</strong>.
                         Silakan cek email Anda.
-                    </p>
+                    </p>*/}
                     <div className="flex justify-center mb-4">
                         <Image
                             src={EmailIcon}

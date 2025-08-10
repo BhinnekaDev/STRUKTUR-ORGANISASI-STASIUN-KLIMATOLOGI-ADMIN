@@ -1,19 +1,16 @@
-export const deletePetugas = async (nip: string) => {
-  try {
-    const response = await fetch(`https://radiant-illumination-production.up.railway.app/petugas/${nip}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
-    if (!response.ok) {
-      throw new Error(`Gagal menghapus petugas dengan NIP: ${nip}`);
-    }
+export async function deletePetugas(nip: string) {
+  const url = `${API_BASE_URL.replace(/\/$/, '')}/petugas/${nip}`;
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error saat menghapus petugas:', error);
-    throw error;
+  const response = await fetch(url, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    throw new Error(`Gagal delete: ${JSON.stringify(errorBody)}`);
   }
-};
+
+  return await response.json();
+}

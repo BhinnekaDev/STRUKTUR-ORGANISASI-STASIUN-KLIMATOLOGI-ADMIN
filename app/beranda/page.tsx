@@ -7,45 +7,49 @@ import Navbar from '@/components/Navbar';
 import DashboardCard from '@/components/DashboardCard';
 import ActivityCard from '@/components/ActivityCard';
 import QuickAccessCard from '@/components/QuickAccessCard';
+import KGBWarningCard from '@/components/KGBWarningCard';
+import { AlertTriangle } from 'lucide-react';
+
 import { getTotalPegawai } from '@/lib/api/petugas/get-count/router';
-import { getTotalJabatan } from '@/lib/api/jabatan/get-count/router';
 import { getTotalStruktur } from '@/lib/api/struktur/get-count/router';
 import { getAktivitasTerbaru } from '@/lib/api/aktivitas/get-aktivitas/router';
-import { getPetugasPerJabatan } from '@/lib/api/petugas/get-petugas-perjabatan/router';
+import { getKGBMendatang } from '@/lib/api/petugas/get-kgb-mendatang/router';
 
 export default function BerandaPage() {
   const router = useRouter();
 
   const [totalPegawai, setTotalPegawai] = useState(0);
-  const [totalJabatan, setTotalJabatan] = useState(0);
   const [totalStruktur, setTotalStruktur] = useState(0);
   const [aktivitas, setAktivitas] = useState<
     { jenis: string; waktu: string; keterangan: string }[]
   >([]);
-  const [petugasPerJabatan, setPetugasPerJabatan] = useState<
-    { nama_jabatan: string; jumlah: number }[]
+  const [kgbMendatang, setKgbMendatang] = useState<
+    { nama: string; kgb_berikutnya: string }[]
   >([]);
 
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const [pegawaiCount, jabatanCount, strukturCount] = await Promise.all([
-          getTotalPegawai(),
-          getTotalJabatan(),
-          getTotalStruktur(),
-        ]);
+        const pegawaiCount = await getTotalPegawai();
+        console.log('Total pegawai:', pegawaiCount);
         setTotalPegawai(pegawaiCount);
-        setTotalJabatan(jabatanCount);
+
+        const strukturCount = await getTotalStruktur();
+        console.log('Total struktur:', strukturCount);
         setTotalStruktur(strukturCount);
 
         const aktivitasData = await getAktivitasTerbaru();
+        console.log('Aktivitas terbaru:', aktivitasData);
         setAktivitas(aktivitasData);
 
-        const jabatanData = await getPetugasPerJabatan();
-        setPetugasPerJabatan(jabatanData);
+        const kgbData = await getKGBMendatang();
+        console.log('KGB Mendatang:', kgbData);
+        setKgbMendatang(kgbData);
       } catch (err) {
         if (err instanceof Error) {
           console.error('Gagal memuat data dashboard:', err.message);
+        } else {
+          console.error('Gagal memuat data dashboard (unknown error):', err);
         }
       }
     };
@@ -64,92 +68,95 @@ export default function BerandaPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
-      {/* Sidebar tetap dan tidak scroll */}
+    <div className="flex-1 p-4 md:p-8 transition-all overflow-hidden bg-gray-100">
       <Sidebar active="Beranda" />
-
-      {/* Main content scrollable */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 ml-14 overflow-y-auto p-6">
         <Navbar title="Beranda" />
 
-        {/* Kartu Ringkasan */}
+        {/* Dashboard cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <DashboardCard
             icon="mdi:account-group"
-            title="Total Petugas"
+            title="Total Pegawai"
             value={totalPegawai}
             onClick={() => router.push('/pegawai')}
           />
           <DashboardCard
-            icon="mdi:account-tie"
-            title="Total Jabatan"
-            value={totalJabatan}
-            onClick={() => router.push('/jabatan')}
-          />
-          <DashboardCard
             icon="mdi:sitemap-outline"
-            title="Struktur Organisasi"
+            title="Total yang Menjabat"
             value={totalStruktur}
             onClick={() => router.push('/struktur')}
           />
         </div>
 
         {/* Aktivitas Terakhir */}
-        <h2 className="text-lg font-semibold mb-2">Aktivitas Terakhir</h2>
-        <div className="flex flex-wrap gap-4 mb-6">
-          {aktivitas.length === 0 ? (
-            <p className="text-gray-500 text-sm">Belum ada aktivitas</p>
-          ) : (
-            aktivitas.slice(0, 3).map((item, idx) => (
-              <ActivityCard
-                key={idx}
-                text={item.keterangan}
-                time={waktuRelatif(item.waktu)}
-              />
-            ))
-          )}
-        </div>
+        <section className="bg-gray-50 rounded-xl p-5 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Aktivitas Terakhir</h2>
+          <div className="flex flex-wrap gap-4">
+            {aktivitas.length === 0 ? (
+              <p className="text-gray-500 text-sm">Belum ada aktivitas</p>
+            ) : (
+              aktivitas.slice(0, 3).map((item, idx) => (
+                <ActivityCard
+                  key={idx}
+                  text={item.keterangan}
+                  time={waktuRelatif(item.waktu)}
+                />
+              ))
+            )}
+          </div>
+        </section>
 
         {/* Quick Akses */}
-        <h2 className="text-lg font-semibold mb-2">Quick Akses</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <QuickAccessCard
-            icon="mdi:account-plus"
-            title="Tambah Petugas"
-            subtitle="Buat entri petugas baru"
-            bgColor="bg-green-100"
-            iconColor="text-green-600"
-            onClick={() => router.push('/pegawai')}
-          />
-          <QuickAccessCard
-            icon="mdi:briefcase-plus"
-            title="Tambah Jabatan"
-            subtitle="Tambahkan jabatan baru"
-            bgColor="bg-blue-100"
-            iconColor="text-blue-600"
-            onClick={() => router.push('/jabatan')}
-          />
-          <QuickAccessCard
-            icon="mdi:sitemap-outline"
-            title="Tambah Struktur"
-            subtitle="Atur struktur organisasi"
-            bgColor="bg-orange-100"
-            iconColor="text-orange-600"
-            onClick={() => router.push('/struktur')}
-          />
-        </div>
+        <section className="bg-gray-50 rounded-xl p-5 mb-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Quick Akses</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <QuickAccessCard
+              icon="mdi:account-plus"
+              title="Tambah Pegawai"
+              subtitle="Buat entri pegawai baru"
+              bgColor="bg-green-100"
+              iconColor="text-green-600"
+              onClick={() => router.push('/pegawai')}
+            />
+            <QuickAccessCard
+              icon="mdi:sitemap-outline"
+              title="Tambah Struktur"
+              subtitle="Atur struktur organisasi"
+              bgColor="bg-orange-100"
+              iconColor="text-orange-600"
+              onClick={() => router.push('/struktur')}
+            />
+          </div>
+        </section>
 
-        {/* Distribusi Petugas per Jabatan */}
-        <h2 className="text-lg font-semibold mb-2">Distribusi Petugas per Jabatan</h2>
-        <DashboardCard
-          icon="mdi:chart-bar"
-          title="Visualisasi Jumlah Petugas per Jabatan"
-          barData={petugasPerJabatan.map((item) => ({
-            label: item.nama_jabatan,
-            value: item.jumlah,
-          }))}
-          onClick={() => router.push('/jabatan')}
-        />
+        {/* Peringatan KGB */}
+        <section className="bg-gray-50 rounded-xl p-5 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4 text-red-700 flex items-center">
+            <AlertTriangle className="w-5 h-5 mr-2" />
+            Peringatan KGB
+          </h2>
+          {kgbMendatang.length === 0 ? (
+            <p className="text-sm text-gray-500">Tidak ada KGB dalam waktu dekat</p>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+              {kgbMendatang
+                .sort(
+                  (a, b) =>
+                    new Date(a.kgb_berikutnya).getTime() -
+                    new Date(b.kgb_berikutnya).getTime()
+                )
+                .slice(0, 2)
+                .map((item, index) => (
+                  <KGBWarningCard
+                    key={index}
+                    nama={item.nama}
+                    tanggal={new Date(item.kgb_berikutnya).toLocaleDateString('id-ID')}
+                  />
+                ))}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

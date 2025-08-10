@@ -1,55 +1,48 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+import { apiUrl } from '@/lib/utils/apiUrl';
 
 export interface UpdatePetugasPayload {
-  ID_Jabatan: string;
-  Jabatan: string;
-  Nama_Depan_Petugas: string;
-  Nama_Belakang_Petugas: string;
-  No_Telepon_Petugas: string;
-  Masa_Bakti: string;
-  Foto_Petugas?: string;
+  nama_lengkap: string;
+  tempat_tanggal_lahir: string;
+  pendidikan_terakhir: string;
+  pangkat_golongan: string;
+  kgb_terakhir: string;
+  kgb_berikutnya: string;
+  tmt: string;
+  no_telepon: string;
+  foto_pegawai: string;
 }
 
-export interface UpdatePetugasResponse {
-  message: string;
-  data?: {
-    NIP: string;
-    ID_Jabatan: string;
-    Nama_Depan_Petugas: string;
-    Nama_Belakang_Petugas: string;
-    No_Telepon_Petugas: string;
-    Masa_Bakti: string;
-    Foto_Petugas: string;
-    Jabatan: string;
-  };
-}
-
-export async function updatePetugas(
-  nip: string,
-  updatedData: UpdatePetugasPayload
-): Promise<UpdatePetugasResponse> {
-  const url = `${API_BASE_URL}/petugas/${nip}`;
-
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(updatedData),
-  });
-
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    console.error('Update failed:', response.status, rawText);
-    throw new Error(`Gagal update petugas: ${rawText}`);
-  }
+export async function updatePetugas(nip: string, data: UpdatePetugasPayload) {
+  const url = apiUrl(`petugas/${nip}`);
+  if (!url) throw new Error('API URL tidak tersedia');
 
   try {
-    const result: UpdatePetugasResponse = JSON.parse(rawText);
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      const msg =
+        result?.message ||
+        result?.error?.message ||
+        `Gagal update petugas (Status ${response.status})`;
+      throw new Error(msg);
+    }
+
     return result;
-  } catch (err) {
-    console.error('JSON parse error:', err);
-    throw new Error('Gagal memproses respons dari server.');
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Terjadi kesalahan saat update data petugas';
+    console.error('Update petugas gagal:', message);
+    throw new Error(message);
   }
 }

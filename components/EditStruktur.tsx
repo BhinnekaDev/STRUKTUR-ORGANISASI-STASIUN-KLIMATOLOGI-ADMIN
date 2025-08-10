@@ -5,19 +5,20 @@ import { toast } from 'react-toastify';
 
 import Button from './Button';
 import InputField from './Input';
+import ModalWrapper from './ModalWrapper';
 import { getAllPetugas } from '@/lib/api/petugas/get-petugas/router';
 import { editStrukturOrganisasi } from '@/lib/api/struktur/put-struktur/router';
 
 interface StrukturForm {
   id: string;
   petugas: string;
-  periode: string;
+  jabatan: string;
+  tmt: string;
 }
 
 interface Petugas {
-  NIP: string;
-  Nama_Depan_Petugas: string;
-  Nama_Belakang_Petugas: string;
+  nip: string;
+  nama_lengkap: string;
 }
 
 interface EditStrukturProps {
@@ -25,6 +26,7 @@ interface EditStrukturProps {
   onClose: () => void;
   struktur: StrukturForm | null;
   onSuccess: () => Promise<void>;
+  userId: string;
 }
 
 export const EditStruktur: React.FC<EditStrukturProps> = ({
@@ -32,14 +34,17 @@ export const EditStruktur: React.FC<EditStrukturProps> = ({
   onClose,
   struktur,
   onSuccess,
+  userId,
 }) => {
   const [formData, setFormData] = useState<StrukturForm>({
     id: '',
     petugas: '',
-    periode: '',
+    jabatan: '',
+    tmt: '',
   });
 
   const [listPetugas, setListPetugas] = useState<Petugas[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (struktur) {
@@ -61,82 +66,92 @@ export const EditStruktur: React.FC<EditStrukturProps> = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!formData.id || !formData.petugas || !formData.periode) {
+    const { id, petugas, jabatan, tmt } = formData;
+    if (!id || !petugas || !jabatan || !tmt) {
       toast.error('Semua kolom wajib diisi');
       return;
     }
 
+    setLoading(true);
     try {
-      await editStrukturOrganisasi(formData);
+      await editStrukturOrganisasi({ id, petugas, jabatan, tmt, userId });
       toast.success('Struktur berhasil diperbarui');
       await onSuccess();
       handleClose();
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Detail error:', error.message);
-      }
+      const message =
+        error instanceof Error ? error.message : 'Terjadi kesalahan saat mengedit struktur';
+      toast.error(message);
+      console.error('Edit struktur error:', message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setFormData({ id: '', petugas: '', periode: '' });
+    setFormData({ id: '', petugas: '', jabatan: '', tmt: '' });
     onClose();
   };
 
-  if (!isOpen || !struktur) return null;
+  if (!struktur) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center items-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4">Edit Struktur Organisasi</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4" autoComplete="off">
-          {/* ID Struktur - read only */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="id" className="text-sm font-medium text-gray-700">ID Struktur</label>
-            <input
-              type="text"
-              name="id"
-              value={formData.id}
-              readOnly
-              className="border rounded-md px-3 py-2 text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
-          </div>
-
-          {/* Pilih Petugas */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="petugas" className="text-sm font-medium text-gray-700">Petugas</label>
-            <select
-              name="petugas"
-              value={formData.petugas}
-              onChange={handleChange}
-              className="border rounded-md px-3 py-2 text-sm"
-              required
-            >
-              <option value="">Pilih Petugas</option>
-              {listPetugas.map((p) => (
-                <option key={p.NIP} value={p.NIP}>
-                  {p.NIP} - {p.Nama_Depan_Petugas} {p.Nama_Belakang_Petugas}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Periode */}
-          <InputField
-            label="Periode"
-            name="periode"
-            value={formData.periode}
+    <ModalWrapper isOpen={isOpen} onClose={handleClose} title="Edit Struktur Organisasi">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4" autoComplete="off">
+        {/* Pilih Petugas */}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="petugas" className="text-sm font-medium text-gray-700">Petugas</label>
+          <select
+            name="petugas"
+            value={formData.petugas}
             onChange={handleChange}
-            placeholder="Contoh: 2024–2026"
-          />
+            className="border rounded-md px-3 py-2 text-sm w-full"
+            required
+          >
+            <option value="">Pilih Petugas</option>
+            {listPetugas.map((p) => (
+              <option key={p.nip} value={p.nip}>
+                {p.nama_lengkap}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* Tombol */}
-          <div className="flex justify-end gap-2 mt-4">
-            <Button label="BATAL" onClick={handleClose} type="button" styleButton="bg-gray-600 text-white" />
-            <Button label="SIMPAN" type="submit" styleButton="bg-blue-800 text-white" />
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Jabatan */}
+        <InputField
+          label="Jabatan"
+          name="jabatan"
+          value={formData.jabatan}
+          onChange={handleChange}
+          placeholder="Contoh: Kepala Seksi Data dan Informasi"
+        />
+
+        {/* TMT */}
+        <InputField
+          label="TMT"
+          name="tmt"
+          type="date"
+          value={formData.tmt}
+          onChange={handleChange}
+          placeholder="Tanggal mulai tugas"
+        />
+
+        {/* Tombol */}
+        <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
+          <Button
+            label="BATAL"
+            onClick={handleClose}
+            type="button"
+            styleButton="bg-gray-600 text-white w-full sm:w-auto"
+          />
+          <Button
+            label={loading ? 'Menyimpan...' : 'SIMPAN'}
+            type="submit"
+            disabled={loading}
+            styleButton="bg-blue-800 text-white w-full sm:w-auto"
+          />
+        </div>
+      </form>
+    </ModalWrapper>
   );
 };

@@ -1,3 +1,4 @@
+// EditPegawai.tsx
 'use client';
 
 import React, { useState, useEffect, ChangeEvent } from 'react';
@@ -6,243 +7,165 @@ import InputField from './Input';
 import Button from './Button';
 import Image from 'next/image';
 import { updatePetugas } from '@/lib/api/petugas/put-petugas/router';
-import { getAllJabatan } from '@/lib/api/jabatan/get-jabatan/router';
+import type { UpdatePetugasPayload } from '@/lib/api/petugas/put-petugas/router';
+import ModalWrapper from './ModalWrapper';
 
-export interface Pegawai {
-  NIP: string;
-  ID_Jabatan: string;
-  Jabatan: {
-    Nama_Jabatan: string;
-  };
-  Nama_Depan_Petugas: string;
-  Nama_Belakang_Petugas: string;
-  No_Telepon_Petugas: string;
-  Foto_Petugas: string;
-  Masa_Bakti: string;
+interface FormData {
+  nip: string;
+  nama_lengkap: string;
+  tempat_tanggal_lahir: string;
+  pendidikan_terakhir: string;
+  pangkat_golongan: string;
+  kgb_terakhir: string;
+  kgb_berikutnya: string;
+  tmt: string;
+  no_telepon: string;
+  foto_pegawai: string;
 }
 
-
-interface EditProps {
+interface EditPegawaiProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: () => void;
-  initialData: Pegawai | null;
+  onSuccess: () => Promise<void>;
+  initialData: FormData | null;
 }
 
-export const EditPegawai: React.FC<EditProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
-  const [form, setForm] = useState<Pegawai | null>(null);
-  const [jabatanList, setJabatanList] = useState<{ id: string; nama: string }[]>([]);
+const pangkatOptions = [
+  'Ia', 'Ib', 'Ic', 'Id',
+  'IIa', 'IIb', 'IIc', 'IId',
+  'IIIa', 'IIIb', 'IIIc', 'IIId',
+  'IVa', 'IVb', 'IVc', 'IVd', 'IVe',
+];
+
+const initialForm: FormData = {
+  nip: '',
+  nama_lengkap: '',
+  tempat_tanggal_lahir: '',
+  pendidikan_terakhir: '',
+  pangkat_golongan: '',
+  kgb_terakhir: '',
+  kgb_berikutnya: '',
+  tmt: '',
+  no_telepon: '',
+  foto_pegawai: '',
+};
+
+export const EditPegawai: React.FC<EditPegawaiProps> = ({ isOpen, onClose, onSuccess, initialData }) => {
+  const [form, setForm] = useState<FormData>(initialForm);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setForm(initialData);
+    if (isOpen && initialData) {
+      setForm({ ...initialForm, ...initialData });
+    } else if (!isOpen) {
+      setForm(initialForm);
       setSelectedFile(null);
     }
-
-    const fetchJabatan = async () => {
-      try {
-        const data = await getAllJabatan();
-        if (Array.isArray(data)) {
-          setJabatanList(data);
-        } else {
-          toast.error('Format data jabatan tidak valid');
-        }
-      } catch {
-        toast.error('Gagal memuat data jabatan');
-      }
-    };
-
-
-    if (isOpen) {
-      fetchJabatan();
-    }
   }, [isOpen, initialData]);
-
-  if (!isOpen || !form) return null;
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    if (name === 'Foto_Petugas') {
-      const input = e.target as HTMLInputElement;
-      if (input.files && input.files[0]) {
-        setSelectedFile(input.files[0]);
-      }
+    if (name === 'foto_pegawai' && e.target instanceof HTMLInputElement && e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) return toast.error('Ukuran file maksimal 2MB');
+      if (!file.type.startsWith('image/')) return toast.error('File harus berupa gambar');
+      setSelectedFile(file);
     } else {
-      setForm((prev) => (prev ? { ...prev, [name]: value } : prev));
+      setForm((prev) => ({ ...prev, [name]: value }));
     }
-  };
-
-  const getImagePreview = (): string => {
-    if (selectedFile) {
-      return URL.createObjectURL(selectedFile);
-    }
-
-    if (!form?.Foto_Petugas) return '';
-
-    if (form.Foto_Petugas.startsWith('data:image')) {
-      return form.Foto_Petugas;
-    }
-
-    if (form.Foto_Petugas.startsWith('http') || form.Foto_Petugas.startsWith('/')) {
-      return form.Foto_Petugas;
-    }
-
-    return `data:image/jpeg;base64,${form.Foto_Petugas}`;
   };
 
   const handleSubmit = async () => {
+    const requiredFields: Array<keyof FormData> = ['nama_lengkap', 'pangkat_golongan', 'no_telepon'];
+
+    for (const field of requiredFields) {
+      if (!form[field]?.trim()) {
+        return toast.error(`Field ${field.replace('_', ' ')} harus diisi`);
+      }
+    }
+
     setLoading(true);
 
     try {
-      let encodedFoto: string | undefined;
-
+      let fotoBase64 = form.foto_pegawai;
       if (selectedFile) {
-        encodedFoto = await new Promise<string>((resolve, reject) => {
+        fotoBase64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') {
-              resolve(reader.result);
-            } else {
-              reject(new Error('Gagal membaca file'));
-            }
-          };
-          reader.onerror = reject;
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Gagal membaca file'));
           reader.readAsDataURL(selectedFile);
         });
-      } else if (form.Foto_Petugas?.startsWith('data:image')) {
-        encodedFoto = form.Foto_Petugas;
       }
 
-      const namaJabatan = jabatanList.find(j => j.id === form.ID_Jabatan)?.nama || '';
+      const payload: UpdatePetugasPayload = {
+        ...form,
+        foto_pegawai: fotoBase64,
+      };
 
-      await updatePetugas(form.NIP, {
-        ID_Jabatan: form.ID_Jabatan,
-        Nama_Depan_Petugas: form.Nama_Depan_Petugas,
-        Nama_Belakang_Petugas: form.Nama_Belakang_Petugas,
-        No_Telepon_Petugas: form.No_Telepon_Petugas,
-        Masa_Bakti: form.Masa_Bakti,
-        Foto_Petugas: encodedFoto,
-        Jabatan: namaJabatan,
-      });
-
+      await updatePetugas(form.nip, payload);
       toast.success('Data pegawai berhasil diperbarui');
-      onSubmit();
+      await onSuccess();
       onClose();
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Detail error:', error.message);
-      }
+      toast.error(error instanceof Error ? error.message : 'Terjadi kesalahan saat memperbarui data');
     } finally {
       setLoading(false);
     }
   };
 
+  const imagePreview = selectedFile
+    ? URL.createObjectURL(selectedFile)
+    : form.foto_pegawai || '';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4">Edit Pegawai</h2>
-        <form className="space-y-4" autoComplete="off">
-          <InputField name="NIP" placeholder="NIP" value={form.NIP} onChange={() => {}} disabled />
+    <ModalWrapper isOpen={isOpen} onClose={onClose} title="Edit Pegawai">
+      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+        <InputField label="NIP" name="nip" value={form.nip} onChange={handleChange} disabled />
+        <InputField label="Nama Lengkap" name="nama_lengkap" value={form.nama_lengkap} onChange={handleChange} disabled={loading} />
+        <InputField label="Tempat & Tanggal Lahir" name="tempat_tanggal_lahir" value={form.tempat_tanggal_lahir} onChange={handleChange} disabled={loading} />
+        <InputField label="Pendidikan Terakhir" name="pendidikan_terakhir" value={form.pendidikan_terakhir} onChange={handleChange} disabled={loading} />
 
-          <select
-            name="ID_Jabatan"
-            value={form.ID_Jabatan}
-            onChange={handleChange}
-            className="w-full border rounded px-3 py-2 text-sm"
-            required
-          >
-            <option value="">-- Pilih Jabatan --</option>
-            {jabatanList.map((jabatan, index) => (
-              <option key={jabatan.id || `jabatan-${index}`} value={jabatan.id}>
-                {jabatan.nama}
-              </option>
-            ))}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Pangkat/Golongan</label>
+          <select name="pangkat_golongan" value={form.pangkat_golongan} onChange={handleChange} className="w-full border rounded px-3 py-2 text-sm" disabled={loading} required>
+            <option value="">-- Pilih Pangkat/Golongan --</option>
+            {pangkatOptions.map((gol) => <option key={gol} value={gol}>{gol}</option>)}
           </select>
+        </div>
 
-          <InputField
-            name="Nama_Depan_Petugas"
-            placeholder="Nama Depan"
-            value={form.Nama_Depan_Petugas}
-            onChange={handleChange}
-          />
-          <InputField
-            name="Nama_Belakang_Petugas"
-            placeholder="Nama Belakang"
-            value={form.Nama_Belakang_Petugas}
-            onChange={handleChange}
-          />
-          <InputField
-            name="No_Telepon_Petugas"
-            placeholder="No Telepon"
-            value={form.No_Telepon_Petugas}
-            onChange={handleChange}
-          />
-          <InputField
-            name="Masa_Bakti"
-            placeholder="Masa Bakti (contoh: 2025–2029)"
-            value={form.Masa_Bakti}
-            onChange={handleChange}
-          />
+        <InputField label="TMT" name="tmt" type="date" value={form.tmt} onChange={handleChange} disabled={loading} />
+        <InputField label="KGB Terakhir" name="kgb_terakhir" type="date" value={form.kgb_terakhir} onChange={handleChange} disabled={loading} />
+        <InputField label="KGB Berikutnya" name="kgb_berikutnya" type="date" value={form.kgb_berikutnya} onChange={handleChange} disabled={loading} />
+        <InputField label="No Telepon" name="no_telepon" type="number" value={form.no_telepon} onChange={handleChange} disabled={loading} />
 
-          {/* File Upload dengan Custom Style */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Foto Pegawai</label>
-            <div className="relative">
-              <input
-                type="file"
-                name="Foto_Petugas"
-                accept="image/*"
-                onChange={handleChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                id="file-upload"
-              />
-              <div className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                <span>{selectedFile ? selectedFile.name : 'Pilih file...'}</span>
-                <span className="px-3 py-1 bg-gray-100 rounded-md">Browse</span>
-              </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Foto Pegawai</label>
+          <div className="relative">
+            <input type="file" name="foto_pegawai" accept="image/*" onChange={handleChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={loading} />
+            <div className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+              <span>{selectedFile ? selectedFile.name : 'Pilih file...'}</span>
+              <span className="px-3 py-1 bg-gray-100 rounded-md">Browse</span>
             </div>
-            {getImagePreview() && (
-              <div className="mt-2 flex items-center gap-2">
-                <Image
-                  src={getImagePreview()}
-                  alt="Foto Pegawai"
-                  width={80}
-                  height={80}
-                  className="rounded border object-cover"
-                />
-                {selectedFile && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFile(null)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Batal
-                  </button>
-                )}
-              </div>
-            )}
           </div>
+          {imagePreview && (
+            <div className="mt-2 flex items-center gap-2">
+              <Image src={imagePreview} alt="Foto Pegawai" width={80} height={80} className="w-20 h-20 object-cover rounded border" unoptimized />
+              {selectedFile && (
+                <button type="button" onClick={() => setSelectedFile(null)} className="text-red-500 hover:text-red-700 text-sm" disabled={loading}>
+                  Hapus
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              label="Batal"
-              onClick={onClose}
-              type="button"
-              styleButton="bg-gray-700 text-white hover:bg-gray-500"
-            />
-            <Button
-              label={loading ? 'Menyimpan...' : 'Simpan'}
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              styleButton="bg-blue-800 text-white hover:bg-blue-900"
-            />
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+          <Button label="Batal" onClick={onClose} type="button" styleButton="bg-gray-500 hover:bg-gray-600 text-white w-full sm:w-auto" disabled={loading} />
+          <Button label={loading ? 'Menyimpan...' : 'Simpan Perubahan'} type="button" onClick={handleSubmit} disabled={loading} styleButton="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto" />
+        </div>
+      </form>
+    </ModalWrapper>
   );
 };
