@@ -106,7 +106,7 @@ MIT © 2025 [Bhinneka Dev](https://github.com/BhinnekaDev)
 ---
 
 <p align="center">
-  <img alt="Cuplikan Admin" src="https://github.com/user-attachments/assets/admin-panel-preview.png" width="80%" />
+  <img alt="Cuplikan Admin" src="https://github.com/user-attachments/assets/7f5c6b07-6141-482d-b898-7b0addd29184" width="80%" />
 </p>
 
 <p align="center"><sub>Bhinneka Developer © 2025</sub></p>
